@@ -18,7 +18,7 @@ import (
 )
 
 logger, _ := turtle.New("out.log") // default is stdout
-logger.Info("test message", Label{Key: "foo", Value: "bar"})
+logger.Info("test message", turtle.Label{Key: "foo", Value: "bar"})
 ```
 
 ## Benchmark
