@@ -17,7 +17,7 @@ import (
     "github.com/PierreKieffer/turtle"
 )
 
-logger, _ := turtle.New("out.log") // default is stdout
+logger, _ := turtle.New("out.log") // default is stdout : logger, _ := turtle.New()
 logger.Info("test message", turtle.Label{Key: "foo", Value: "bar"})
 logger.Warn("test message", turtle.Label{Key: "foo", Value: "bar"})
 logger.Debug("test message", turtle.Label{Key: "foo", Value: "bar"})
