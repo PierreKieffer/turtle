@@ -15,6 +15,7 @@ type Buffer []byte
 type LoggerInterface interface {
 	Info()
 	Debug()
+	Warn()
 	Error()
 	InfoEndpoint()
 }
@@ -62,7 +63,7 @@ func New(outputPath ...string) (*Logger, error) {
 			l.writer = file
 			return &l, nil
 		} else {
-			return &l, fmt.Errorf("invalid outputPath")
+			return &l, fmt.Errorf("Invalid output file path")
 		}
 	}
 

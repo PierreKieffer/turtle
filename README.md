@@ -20,6 +20,9 @@ import (
 logger, _ := turtle.New("out.log") // default is stdout
 logger.Info("test message", turtle.Label{Key: "foo", Value: "bar"})
 ```
+```
+2023-10-12 14:01:56 [INFO] test message foo:bar
+```
 
 ## Benchmark
 
