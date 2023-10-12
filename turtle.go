@@ -1,4 +1,4 @@
-package turtle
+package main
 
 import (
 	"fmt"
@@ -9,19 +9,9 @@ import (
 	"time"
 )
 
-const (
-	BUFFER_CAP int = 256 // Buffer capacity for memory allocation
-)
+type Buffer []byte
 
-var (
-	INFO  []byte = []byte{32, 91, 73, 78, 70, 79, 93, 32}     //" [INFO] "
-	DEBUG []byte = []byte{32, 91, 68, 69, 66, 85, 71, 93, 32} //" [DEBUG] "
-	WARN  []byte = []byte{32, 91, 87, 65, 82, 78, 93, 32}     //" [WARN] "
-	ERROR []byte = []byte{32, 91, 69, 82, 82, 79, 82, 93, 32} //" [ERROR] "
-)
-
-// LoggerInterface
-// Holds Logger public methods
+// LoggerInterface holds Logger public methods
 type LoggerInterface interface {
 	Info()
 	Debug()
@@ -29,13 +19,11 @@ type LoggerInterface interface {
 	InfoEndpoint()
 }
 
-// Logger
 // Logger type holds a writer to write logs to output
 type Logger struct {
 	writer io.Writer
 }
 
-// Label
 // Label is used to passed typed structured data to logger
 type Label struct {
 	Key   string
@@ -46,14 +34,20 @@ type Label struct {
 // A Pool is a set of temporary objects that may be individually saved and retrieved.
 // Pool's purpose is to cache allocated but unused items for later reuse, relieving pressure on the garbage collector
 // Here sync.Pool is used to cache allocated buffers
-var bufferPool = &sync.Pool{
-	New: func() interface{} {
-		return newBuffer()
+var bufferPool = sync.Pool{
+	New: func() any {
+		b := make([]byte, 0, 1024)
+		return (*Buffer)(&b)
 	},
 }
 
-// New
-// Initialize logger
+// resetBuffer resets the buffer to be empty,
+// but it retains the underlying storage for use by future writes
+func (b *Buffer) resetBuffer() {
+	*b = (*b)[:0]
+}
+
+// New initializes logger
 // Default output is Stdout
 func New(outputPath ...string) (*Logger, error) {
 	var l Logger
@@ -76,94 +70,130 @@ func New(outputPath ...string) (*Logger, error) {
 	return &l, nil
 }
 
-// serialize
-// serialize format the timestamp, level, log message and associated labels
-// and write content to the buffer
-func serialize(buffer *[]byte, level string, msg string, labels ...Label) {
-
-	// time
-	*buffer = append(*buffer, []byte(time.Now().Format("2006-01-02 15:04:05"))...)
-
-	// level
-	switch level {
-	case "info":
-		*buffer = append(*buffer, INFO...)
-	case "debug":
-		*buffer = append(*buffer, DEBUG...)
-	case "warn":
-		*buffer = append(*buffer, WARN...)
-	case "error":
-		*buffer = append(*buffer, ERROR...)
-	}
-
-	// message
-	*buffer = append(*buffer, []byte(msg)...)
-
-	// labels
-	for i := range labels {
-		*buffer = append(*buffer, 32) // byte 32 = " "
-		*buffer = append(*buffer, []byte(labels[i].Key)...)
-		*buffer = append(*buffer, 58) // byte 58  = ":"
-		*buffer = append(*buffer, []byte(labels[i].Value)...)
-	}
-	// separator
-	*buffer = append(*buffer, 10) // byte 10 = \n
-}
-
-// newBuffer
-// Init a new byte buffer of capacity BUFFER_CAP
-func newBuffer() *[]byte {
-	var b = make([]byte, 0, BUFFER_CAP)
-	return &b
-}
-
-// resetBuffer
-// resetBuffer resets the buffer to be empty,
-// but it retains the underlying storage for use by future writes
-func resetBuffer(b *[]byte) {
-	*b = (*b)[:0]
-}
-
 // Info
 func (l *Logger) Info(msg string, labels ...Label) {
 
-	b := bufferPool.Get().(*[]byte)
+	b := bufferPool.Get().(*Buffer)
 	defer bufferPool.Put(b)
-	defer resetBuffer(b)
+	defer b.resetBuffer()
 
-	serialize(b, "info", msg, labels...)
+	b.serialize("info", msg, labels...)
 	l.writer.Write(*b)
 }
 
 // Debug
 func (l *Logger) Debug(msg string, labels ...Label) {
 
-	b := bufferPool.Get().(*[]byte)
+	b := bufferPool.Get().(*Buffer)
 	defer bufferPool.Put(b)
-	defer resetBuffer(b)
+	defer b.resetBuffer()
 
-	serialize(b, "debug", msg, labels...)
+	b.serialize("debug", msg, labels...)
 	l.writer.Write(*b)
 }
 
 // Error
 func (l *Logger) Error(msg string, labels ...Label) {
 
-	b := bufferPool.Get().(*[]byte)
+	b := bufferPool.Get().(*Buffer)
 	defer bufferPool.Put(b)
-	defer resetBuffer(b)
+	defer b.resetBuffer()
 
-	serialize(b, "error", msg, labels...)
+	b.serialize("error", msg, labels...)
 	l.writer.Write(*b)
 }
 
 // Warn
 func (l *Logger) Warn(msg string, labels ...Label) {
 
-	b := bufferPool.Get().(*[]byte)
+	b := bufferPool.Get().(*Buffer)
 	defer bufferPool.Put(b)
-	defer resetBuffer(b)
+	defer b.resetBuffer()
 
-	serialize(b, "warn", msg, labels...)
+	b.serialize("warn", msg, labels...)
 	l.writer.Write(*b)
+}
+
+// serialize formats the timestamp, level, log message and associated labels
+// and write content to the buffer
+func (b *Buffer) serialize(level string, msg string, labels ...Label) {
+
+	// time
+	b.writeTime()
+
+	// level
+	switch level {
+	case "info":
+		*b = append(*b, " [INFO] "...)
+	case "debug":
+		*b = append(*b, " [DEBUG] "...)
+	case "warn":
+		*b = append(*b, " [WARN] "...)
+	case "error":
+		*b = append(*b, " [ERROR] "...)
+	}
+
+	// message
+	*b = append(*b, msg...)
+
+	// labels
+	for i := range labels {
+		*b = append(*b, 32) // byte 32 = " "
+		*b = append(*b, labels[i].Key...)
+		*b = append(*b, 58) // byte 58  = ":"
+		*b = append(*b, labels[i].Value...)
+	}
+	// separator
+	*b = append(*b, 10) // byte 10 = \n
+}
+
+// writeTime computes the time in format "2006-01-02 15:04:05" and append to b
+func (b *Buffer) writeTime() {
+	t := time.Now()
+	year, month, day := t.Date()
+	h, m, s := t.Clock()
+
+	b.writeInt(year)
+	*b = append(*b, 45)
+	b.writeInt(int(month))
+	*b = append(*b, 45)
+	b.writeInt(day)
+	*b = append(*b, 32)
+	b.writeInt(h)
+	*b = append(*b, 58)
+	b.writeInt(m)
+	*b = append(*b, 58)
+	b.writeInt(s)
+}
+
+// writeInt appends the decimal form of x to b
+func (b *Buffer) writeInt(x int) {
+	// Compute number of decimals n
+	var n int
+	if x == 0 {
+		n = 1
+	}
+	for x2 := x; x2 > 0; x2 /= 10 {
+		n++
+	}
+	if n == 1 {
+		n++
+	}
+
+	// Increase buffer len
+	*b = (*b)[:len(*b)+n]
+	i := len(*b) - 1
+	if x < 10 {
+		(*b)[i] = byte(48 + x)
+		(*b)[i-1] = byte(48)
+	} else {
+		// Add decimals bytes in reverse
+		for x >= 10 {
+			q := x / 10
+			(*b)[i] = byte(48 + x - q*10)
+			x = q
+			i--
+		}
+		(*b)[i] = byte(48 + x)
+	}
 }

@@ -26,5 +26,5 @@ logger.Info("test message", turtle.Label{Key: "foo", Value: "bar"})
 goos: darwin
 goarch: arm64
 pkg: github.com/PierreKieffer/turtle
-BenchmarkTurtle-8   	  768703	      1467 ns/op	      24 B/op	       1 allocs/op
+BenchmarkTurtle-8   	  813145	      1730 ns/op	       0 B/op	       0 allocs/op
 ```
