@@ -19,9 +19,15 @@ import (
 
 logger, _ := turtle.New("out.log") // default is stdout
 logger.Info("test message", turtle.Label{Key: "foo", Value: "bar"})
+logger.Warn("test message", turtle.Label{Key: "foo", Value: "bar"})
+logger.Debug("test message", turtle.Label{Key: "foo", Value: "bar"})
+logger.Error("test message", turtle.Label{Key: "foo", Value: "bar"})
 ```
 ```
-2023-10-12 14:01:56 [INFO] test message foo:bar
+2023-10-12 14:08:34 [INFO] test message foo:bar
+2023-10-12 14:08:34 [WARN] test message foo:bar
+2023-10-12 14:08:34 [DEBUG] test message foo:bar
+2023-10-12 14:08:34 [ERROR] test message foo:bar
 ```
 
 ## Benchmark
